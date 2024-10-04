@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: postgresql
+  serviceName: "postgresql"
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/main: "true"
+      volumes:
+      - name: init-script
+        configMap:
+          name: db-init-configmap
+      - name: postgresdb
+        persistentVolumeClaim:
+          claimName: csi-pvc
+      containers:
+      - image: postgres:13
+        name: postgresql
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: env-secrets
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: env-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: env-secrets
+              key: POSTGRES_PASSWORD
+        ports:
+          - containerPort: 5432
+        volumeMounts:
+          - name: postgresdb
+            mountPath: /var/lib/postgresql/data
+          - name: init-script
+            mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "10m"
+          limits: 
+            memory: "100Mi"
+            cpu: "10m"
